@@ -1,15 +1,36 @@
 ---
-title: "CaseStudy2"
+title: "DDSAnalytics Talent Management EDA "
 output: html_document
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
+## Web link to Youtube video
+<a href="https://youtu.be/Y9-0hh8LNzg"> Cleveland's Youtube </a>  
+  
+## Introduction
+
+Today we will use the our data set to answer the following question:  
+* What does our data look like?  
+* What data was removed?  
+* What factors lead to attrition? What are the top 3?  
+* Can we build a model to predict attrition?  
+* What factors contribute to monthly income?  
+* Can we build a model to predict monthly income?  
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 
 ```
 
+##Initial Data Check  
+We found 870 observations with 36 variables.  
+19 Continous variables.  
+9 Nominal variables.  
+8 Ordinal variables.  
+The 8 Ordinal variables were imported ad intergers and were converted to Factors.
+  
+Standard Hours, Over18, and EmployeeCount were not considered during EDA.  
+These variables had the same value for all observations.  
 ```{r Bring in Libraries + Load the data}
 library(tidyverse)
 library(readxl)
@@ -18,12 +39,13 @@ library(GGally)
 library(e1071)
 library(caret)
 library(ggcorrplot)
+library(gridExtra)
 
 data <-read.csv(curl("https://raw.githubusercontent.com/tricleve/CaseStudy2DDS/master/CaseStudy2-data.csv"))
 
-str(data)
-summary(data)
-#NAs were found
+#str(data)
+#summary(data)
+#No missing values were found
 
 #Ordinal data was captured as integers.  Need to change variable type to Factor
 data$Education = as.factor(data$Education)
@@ -36,46 +58,83 @@ data$RelationshipSatisfaction = as.factor(data$RelationshipSatisfaction)
 data$WorkLifeBalance = as.factor(data$WorkLifeBalance)
 
 
+#Import Attrition Competition set and change variables
+Comp_attr <- read.csv(curl("https://raw.githubusercontent.com/tricleve/CaseStudy2DDS/master/CaseStudy2CompSetNoAttrition.csv"))
+Comp_attr$Education = as.factor(Comp_attr$Education)
+Comp_attr$EnvironmentSatisfaction = as.factor(Comp_attr$EnvironmentSatisfaction)
+Comp_attr$JobInvolvement = as.factor(Comp_attr$JobInvolvement)
+Comp_attr$JobLevel = as.factor(Comp_attr$JobLevel)
+Comp_attr$JobSatisfaction = as.factor(Comp_attr$JobSatisfaction)
+Comp_attr$PerformanceRating = as.factor(Comp_attr$PerformanceRating)
+Comp_attr$RelationshipSatisfaction = as.factor(Comp_attr$RelationshipSatisfaction)
+Comp_attr$WorkLifeBalance = as.factor(Comp_attr$WorkLifeBalance)
+#str(Comp_attr)
 
+#Import Salary Competition data set adn change variables
+Comp_sal <-read.csv(curl("https://raw.githubusercontent.com/tricleve/CaseStudy2DDS/master/CaseStudy2CompSetNoSalary.csv"))
+Comp_sal$Education = as.factor(Comp_sal$Education)
+Comp_sal$EnvironmentSatisfaction = as.factor(Comp_sal$EnvironmentSatisfaction)
+Comp_sal$JobInvolvement = as.factor(Comp_sal$JobInvolvement)
+Comp_sal$JobLevel = as.factor(Comp_sal$JobLevel)
+Comp_sal$JobSatisfaction = as.factor(Comp_sal$JobSatisfaction)
+Comp_sal$PerformanceRating = as.factor(Comp_sal$PerformanceRating)
+Comp_sal$RelationshipSatisfaction = as.factor(Comp_sal$RelationshipSatisfaction)
+Comp_sal$WorkLifeBalance = as.factor(Comp_sal$WorkLifeBalance)
+#str(Comp_sal)
 
 ```
 
+## Attrition: Continuous EDA
 ```{r Attrition: Continous EDA}
 #EDA of Continuous variables in data set
 
 #Appears to be a factor
-data %>% ggplot(aes(MonthlyIncome))+geom_boxplot(aes(fill=Attrition))
-data %>% ggplot(aes(TotalWorkingYears))+geom_boxplot(aes(fill=Attrition))
-data %>% ggplot(aes(YearsAtCompany))+geom_boxplot(aes(fill=Attrition))
-data %>% ggplot(aes(YearsInCurrentRole))+geom_boxplot(aes(fill=Attrition))
-data %>% ggplot(aes(YearsWithCurrManager))+geom_boxplot(aes(fill=Attrition))
+MI_plot <-data %>% ggplot(aes(MonthlyIncome))+geom_boxplot(aes(fill=Attrition))+labs(title="Monthly Income vs Attrition")
+TWY_plot <-data %>% ggplot(aes(TotalWorkingYears))+geom_boxplot(aes(fill=Attrition))+labs(title="TotalWorkingYears vs Attrition")
+YAC_plot <- data %>% ggplot(aes(YearsAtCompany))+geom_boxplot(aes(fill=Attrition))+labs(title="YearsAtCompany vs Attrition")
+YICR_plot <- data %>% ggplot(aes(YearsInCurrentRole))+geom_boxplot(aes(fill=Attrition))+labs(title="YearsInCurrentRole vs Attrition")
+YWCM_plot <- data %>% ggplot(aes(YearsWithCurrManager))+geom_boxplot(aes(fill=Attrition))+labs(title="YearsWithCurrManager vs Attrition")
 
 #T-tests for continuous variables that appear to be significant(ranked in ascending P-value order)
-
 leave_MI <- data %>% filter(Attrition=="Yes") %>% select(MonthlyIncome)
 stay_MI <- data %>% filter(Attrition=="No") %>% select(MonthlyIncome)
-t.test(leave_MI, stay_MI, alternative="two.sided")
+MI_t <-t.test(leave_MI, stay_MI, alternative="two.sided")
 
 leave_TWY <- data %>% filter(Attrition=="Yes") %>% select(TotalWorkingYears)
 stay_TWY <- data %>% filter(Attrition=="No") %>% select(TotalWorkingYears)
-t.test(leave_TWY, stay_TWY, alternative="two.sided")
+TWY_t <-t.test(leave_TWY, stay_TWY, alternative="two.sided")
 
 
 leave_YICR <- data %>% filter(Attrition=="Yes") %>% select(YearsInCurrentRole)
 stay_YICR <- data %>% filter(Attrition=="No") %>% select(YearsInCurrentRole)
-t.test(leave_YICR, stay_YICR, alternative="two.sided")
+YICR <- t.test(leave_YICR, stay_YICR, alternative="two.sided")
 
 leave_YWCM <- data %>% filter(Attrition=="Yes") %>% select(YearsWithCurrManager)
 stay_YWCM <- data %>% filter(Attrition=="No") %>% select(YearsWithCurrManager)
-t.test(leave_YWCM, stay_YWCM, alternative="two.sided")
+YWCM <- t.test(leave_YWCM, stay_YWCM, alternative="two.sided")
+
 
 leave_YAC <- data %>% filter(Attrition=="Yes") %>% select(YearsAtCompany)
 stay_YAC <- data %>% filter(Attrition=="No") %>% select(YearsAtCompany)
-t.test(leave_YAC, stay_YAC, alternative="two.sided")
+YAC <- t.test(leave_YAC, stay_YAC, alternative="two.sided")
 
-leave_Age <- data %>% filter(Attrition=="Yes") %>% select(Age)
-stay_Age <- data %>% filter(Attrition=="No") %>% select(Age)
-t.test(leave_Age, stay_Age, alternative="two.sided")
+Cont_var = c("MonthlyIncome", "TotalWorkingYears","YearsInCurrentRole","YearsWithCurrManager","YearsAtCompany")
+ttest_p = c(MI_t$p.value, TWY_t$p.value, YICR$p.value, YWCM$p.value, YAC$p.value)
+
+df_ttest = data.frame(Variable=Cont_var, "TTest pvalue"=ttest_p)
+```
+Boxplots were used to determine a relationship between the continuonus variables and Attrition.  
+Five variables appears signficant:  
+* Monthly Income  
+* TotalWOrkingYears  
+* YearsAtCompany  
+* YearsInCurrentRold  
+* YearsWithCurrManager  
+
+A t-test was conducted to confirm signficance for these 5 variables.  
+The boxplots and p value table is below.  
+```{r Attrition: Continuous EDA cont.}
+grid.arrange(MI_plot, TWY_plot, YAC_plot,YICR_plot, YWCM_plot,tableGrob(df_ttest))
 
 #Doesn't appear to be a factor
 #data %>% ggplot(aes(Age))+geom_boxplot(aes(fill=Attrition))
@@ -88,64 +147,55 @@ t.test(leave_Age, stay_Age, alternative="two.sided")
 #data %>% ggplot(aes(HourlyRate))+geom_boxplot(aes(fill=Attrition))
 #data %>% ggplot(aes(DailyRate))+geom_boxplot(aes(fill=Attrition))
 #data %>% ggplot(aes(DistanceFromHome))+geom_boxplot(aes(fill=Attrition))
-
-#ggpairs for the continuous variables that appear to be a factor
-data %>% select(MonthlyIncome, TotalWorkingYears, YearsInCurrentRole, YearsWithCurrManager, YearsAtCompany, Age, Attrition) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
-#Based on continuouos ggpairs -> Monthly Income and TotalWorkingYears are the top two
-
 ```
+  
+## Attrition: Categorical EDA  
+The relationship between categorical variables and Attrition was assessed using a Proportion tables.
+A sample table is below:  
 
 ```{r Attrition: Categorical EDA}
 #Categorical variable EDA
 
-#Bar plots of categorical variables
-data %>% ggplot(aes(Attrition))+geom_bar()
-data %>% ggplot(aes(Department))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(EducationField))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(Gender))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(JobRole))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(MaritalStatus))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(OverTime))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(Education))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(EnvironmentSatisfaction))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(JobInvolvement))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(JobLevel))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(JobSatisfaction))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(RelationshipSatisfaction))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(WorkLifeBalance))+geom_bar(aes(fill=Attrition))
-data %>% ggplot(aes(PerformanceRating))+geom_bar(aes(fill=Attrition))
-
-
-chisq.test(data$Education, data$Attrition)
-chisq.test(data$EnvironmentSatisfaction, data$Attrition)
-chisq.test(data$JobInvolvement, data$Attrition)
-chisq.test(data$JobLevel, data$Attrition)
-chisq.test(data$JobSatisfaction, data$Attrition)
-chisq.test(data$PerformanceRating, data$Attrition)
-chisq.test(data$RelationshipSatisfaction, data$Attrition)
-chisq.test(data$WorkLifeBalance, data$Attrition)
-chisq.test(data$BusinessTravel, data$Attrition)
-chisq.test(data$Department, data$Attrition)
-chisq.test(data$EducationField, data$Attrition)
-chisq.test(data$JobRole, data$Attrition)
-chisq.test(data$Gender, data$Attrition)
-chisq.test(data$MaritalStatus, data$Attrition)
-chisq.test(data$OverTime, data$Attrition)
-
-
 #Categorical variable analysis -> Looking at percentage left by each response
 #Appears to be a factor
 data %>% group_by(JobLevel) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
-data %>% group_by(OverTime) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
-data %>% group_by(JobInvolvement) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
-data %>% group_by(JobSatisfaction) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
-data %>% group_by(JobRole) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
-data %>% group_by(MaritalStatus) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
+#data %>% group_by(OverTime) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
+#data %>% group_by(JobInvolvement) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
+#data %>% group_by(JobRole) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
+#data %>% group_by(MaritalStatus) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
 
-#ggpairs for the categorical variables that appear to factor
-data %>% select(JobLevel, OverTime, JobInvolvement, JobSatisfaction, JobRole, MaritalStatus, Attrition) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
+```
+  
+5 Categorical variables were identified as having a relationship with Attrition:  
+* JobLevel  
+* OverTime  
+* JobInvolvement  
+* JobSatisfaction  
+* JobRole  
+*  Marital Status  
+A bar chart vs Attrition and a chi square test was also completed for each of these variables.  
+The results can be seen below:
+```{r Attrition: Categorical EDA cont}
+#Bar plots for variables deemed factors
+JL_plot <- data %>% ggplot(aes(JobLevel))+geom_bar(aes(fill=Attrition)) + labs(title="JobLevel vs Attrition")
+O_plot <- data %>% ggplot(aes(OverTime))+geom_bar(aes(fill=Attrition)) + labs(title="Overtime vs Attrition")
+JI_plot <- data %>% ggplot(aes(JobInvolvement))+geom_bar(aes(fill=Attrition)) + labs(title="JobInvolvement vs Attrition")
+JS_plot <- data %>% ggplot(aes(JobSatisfaction))+geom_bar(aes(fill=Attrition)) + labs(title="JobSatisfaction vs Attrition")
+JR_plot <-data %>% ggplot(aes(JobRole))+geom_bar(aes(fill=Attrition)) + labs(title="JobRole vs Attrition")
+MS_plot <- data %>% ggplot(aes(MaritalStatus))+geom_bar(aes(fill=Attrition)) + labs(title="MaritalStatus vs Attrition")
 
-#Based on categorical ggpairs -> Job Level and Job Satisfaction appear the most significant
+#Chi square test to determine correlation
+JL_chi <- chisq.test(data$JobLevel, data$Attrition)
+O_chi <- chisq.test(data$OverTime, data$Attrition)
+JI_chi <- chisq.test(data$JobInvolvement, data$Attrition)
+JR_chi <- chisq.test(data$JobRole, data$Attrition)
+MS_chi <- chisq.test(data$MaritalStatus, data$Attrition)
+
+cat_var = c("JobLevel", "OverTime", "JobInvolvement", "JobRole", "MaritalStatus")
+chi_p = c(JL_chi$p.value, O_chi$p.value, JI_chi$p.value, JR_chi$p.value, MS_chi$p.value)
+df_chitest = data.frame(Variable=cat_var, Chisq.pvalue=chi_p)
+
+grid.arrange(JL_plot, O_plot, JI_plot, JR_plot, MS_plot,tableGrob(arrange(df_chitest, Chisq.pvalue)))
 
 #Doesn't appear
 #data %>% group_by(PerformanceRating) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
@@ -156,9 +206,23 @@ data %>% select(JobLevel, OverTime, JobInvolvement, JobSatisfaction, JobRole, Ma
 #data %>% group_by(BusinessTravel) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
 #data %>% group_by(Department) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
 #data %>% group_by(WorkLifeBalance) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
+#data %>% group_by(JobSatisfaction) %>% count(Attrition) %>% mutate(sum=sum(n)) %>% mutate(perc_by_cat=n/sum) %>% filter(Attrition=="Yes")
+#Attrition model plots
 
 ```
-
+  
+##NaiveBayes
+The NB model was created by adding a signficant variable one at a time.  
+Ulitmately 7 variables were used to reach Sensitivity and Specificity >60%.  
+These variables were:  
+* OverTime  
+* JobRole  
+* JobInvolvement  
+* MonthlyIncome  
+* TotalWorkingYears  
+* YearsInCurrentRole  
+* JobLevel  
+The Confusion matrix and plots are below.  
 ```{r Attrition model}
 
 set.seed(6)
@@ -170,35 +234,73 @@ trainIndices = sample(seq(1,dim(data)[1],1),round(splitPerc * dim(data)[1]))
 train = data[trainindex,]
 test = data[-trainindex,]
 
-summary(train$Attrition)[2]/dim(train)[1]
-summary(test$Attrition)[2]/dim(test)[1]
-
-JobLevel+OverTime+JobInvolvement+JobRole+TotalWorkingYears+MonthlyIncome+YearsInCurrentRole
-
-m = naiveBayes(Attrition~OverTime+MonthlyIncome+JobRole+TotalWorkingYears+JobInvolvement+YearsInCurrentRole+JobLevel,data=train)
+m = naiveBayes(Attrition~OverTime+JobRole+JobInvolvement+MonthlyIncome+TotalWorkingYears+YearsInCurrentRole+JobLevel,data=train)
 table(predict(m, newdata=test),test$Attrition)
 CM = confusionMatrix(table(predict(m, newdata=test),test$Attrition))
 CM
 
-```
+grid.arrange(O_plot, JR_plot,JI_plot, MI_plot, TWY_plot,YICR_plot,JL_plot)
 
+comp_NB = naiveBayes(Attrition~OverTime+MonthlyIncome+JobRole+TotalWorkingYears+JobInvolvement+YearsInCurrentRole+JobLevel,data=data)
+
+pred_att = data.frame(Attrition =predict(comp_NB, newdata=Comp_attr))
+att_comp <-bind_cols(Comp_attr,pred_att)
+
+#summary(att_comp)
+
+#write.csv(att_comp,file="Case2PredictionsJohnson Attrition.csv")
+```
+  
+## Salary EDA
+4 Categorical variables were observed to have some type of relationship with MonthlyIncome.  
+* JobLevel  
+* Education  
+* JobRole  
+* EducationField  
+The boxplots of these variables are below:  
 ```{r Salary EDA}
 
 #Ordinal variable EDA
-data %>% select(Education, EnvironmentSatisfaction, JobInvolvement, JobSatisfaction, PerformanceRating, WorkLifeBalance, JobLevel, RelationshipSatisfaction, MonthlyIncome) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
-# Correlation to JobLevel
+#data %>% select(Education, EnvironmentSatisfaction, JobInvolvement, JobSatisfaction, PerformanceRating, WorkLifeBalance, JobLevel, RelationshipSatisfaction, MonthlyIncome) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
+# Correlation to JobLevel, maybe Education
+
+JLS_plot <- data %>% ggplot(aes(JobLevel, MonthlyIncome))+geom_boxplot()+labs(title="Job Level vs Monthly Income")
+
+ES_plot <- data %>% ggplot(aes(Education, MonthlyIncome))+geom_boxplot()+labs(title="Education vs Monthly Income")
 
 #Nominal variable EDA
-data %>% select(Attrition, BusinessTravel, Department, EducationField, Gender, JobRole, MaritalStatus, OverTime, MonthlyIncome) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
-# JobRole has interesting differences
+#data %>% select(Attrition, BusinessTravel, Department, EducationField, Gender, JobRole, MaritalStatus, OverTime, MonthlyIncome) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
+# JobRole has interesting differences.  Maybe EducationField
 
+JRS_plot <- data %>% ggplot(aes(JobRole,MonthlyIncome))+geom_boxplot()+labs(title="JobRole vs Monthly Income")
+
+EFS_plot <- data %>% ggplot(aes(EducationField,MonthlyIncome))+geom_boxplot()+labs(title="EducationField vs Monthly Income")
+
+grid.arrange(JLS_plot, ES_plot, JRS_plot, EFS_plot)
+```
+  
+3 Continuous variables were observed to have some type of relationship with MonthlyIncome.  
+* Age  
+* TotalWorkingYears  
+* Years at Company  
+This was confirmed by a scatterplot for each.  
+A correlation matrix was completed with additional variables to confirm as well.  
+```{r Salary EDA Cont}
 #Continous variable EDA
-data %>% select(Age,DailyRate, DistanceFromHome, HourlyRate, MonthlyRate, NumCompaniesWorked, PercentSalaryHike, MonthlyIncome) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
+#data %>% select(Age,DailyRate, DistanceFromHome, HourlyRate, MonthlyRate, NumCompaniesWorked, PercentSalaryHike, MonthlyIncome) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
 # Age has a positive correlation
 
-data %>% select(StockOptionLevel, TotalWorkingYears, TrainingTimesLastYear, YearsSinceLastPromotion, YearsInCurrentRole, YearsWithCurrManager, YearsAtCompany, MonthlyIncome) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
+AgS_plot <- data %>% ggplot(aes(Age,MonthlyIncome))+geom_point()+geom_smooth(method="lm")+labs(title = "Age vs Monthly Income")
+
+#data %>% select(StockOptionLevel, TotalWorkingYears, TrainingTimesLastYear, YearsSinceLastPromotion, YearsInCurrentRole, YearsWithCurrManager, YearsAtCompany, MonthlyIncome) %>% ggpairs(upper = list(continuous="smooth", combo="box", discrete = "facetbar"), lower=list(continuous="smooth", combo="box", discrete = "facetbar"))
 #TotalWorking Years and YearsatCompany have a strong correlation
 #Years SinceLastPromotion, InCurrentRole and WithCurrManager have weak positive correlation
+
+TWYS_plot <- data %>% ggplot(aes(TotalWorkingYears,MonthlyIncome))+geom_point()+geom_smooth(method="lm")+labs(title = "TotalWorkingYears vs Monthly Income")
+
+YaCS_plot <- data %>% ggplot(aes(YearsAtCompany,MonthlyIncome))+geom_point()+geom_smooth(method="lm")+labs(title = "YearsAtCompany vs Monthly Income")
+
+grid.arrange(AgS_plot,TWYS_plot, YaCS_plot)
 
 corr_data <- data %>% select(Age, TotalWorkingYears, YearsAtCompany, YearsSinceLastPromotion, YearsInCurrentRole, YearsWithCurrManager, MonthlyIncome)
 
@@ -215,24 +317,45 @@ ggcorrplot(corr, hc.order = TRUE,
 #TotalWorkingYears
 
 ```
-
+## Salary Regression
+The Regression model was build by adding one variable at a time.  
+Two variables were used to achieve the RMSE < $3000.  
+These variables were:  
+* TotalWorkingYears  
+* JobLevel  
+The plots and regression results are below.  
 ```{r Salary Model}
 Salary_train <- data %>% select(MonthlyIncome, TotalWorkingYears, JobLevel)
 
 fit <- lm(MonthlyIncome~TotalWorkingYears+JobLevel, data=Salary_train)
 
 summary(fit)
-confint(fit)
-
-hist(fit$residuals, col="blue")
-plot(fit$fitted.values, fit$residuals)
+#confint(fit)
 
 train(MonthlyIncome~TotalWorkingYears+JobLevel, method="lm",data=Salary_train, trControl = trainControl(method = "LOOCV"))
 
+grid.arrange(TWYS_plot, JLS_plot)
 
+pred_sal = data.frame(MonthlyIncome = predict(fit, newdata = Comp_sal))
+sal_comp <-bind_cols(Comp_sal, pred_sal)
 
+#summary(sal_comp)
 
-
-
+#write.csv(sal_comp, file="Case2PredictionsJohnson Salary.csv")
 
 ```
+
+##In Summary
+Removed 3 variables from consideration (StandardHours, Over18, EmployeeCount)  
+10 Variables considered for Attrition Prediction Model  
+* 5 Categorical  
+* 5 Continous  
+Final Attrition Prediction Model had 7 Variables(4 Categorical/3Continuous)  
+*Sensitivity = 88%   
+*Specificity = 62%   
+7 Variables considered for Salary Model  
+* 4 Categorical Variables  
+* 3 Continuous Variables  
+Final Salary Model has 2 Variables (1 each Categorical/Continuous)  
+* R2 = .93
+* RMSE = $1262  
